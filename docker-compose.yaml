@@ -1,0 +1,61 @@
+version: '3.8'
+
+networks:
+  hadoopnet:
+
+services:
+  namenode:
+    image: apache/hadoop:3.3.6
+    container_name: namenode
+    hostname: namenode
+    command: ["hdfs", "namenode"]
+    ports:
+      - "9870:9870"   # Web UI
+      - "8020:8020"   # RPC port
+      - "7000:7000"   # JMX exporter
+    volumes:
+      - ./monitoring/jmx:/opt/jmx:ro
+    environment:
+      ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
+      HADOOP_NAMENODE_OPTS: "-javaagent:/opt/jmx/jmx_prometheus_javaagent-0.20.0.jar=7000:/opt/jmx/hadoop.yml"
+    env_file:
+      - ./config
+    networks:
+      - hadoopnet
+  datanode:
+    image: apache/hadoop:3.3.6
+    container_name: datanode
+    hostname: datanode
+    command: ["hdfs", "datanode"]
+    ports:
+      - "9864:9864"   # Web UI
+      - "7001:7001"   # JMX exporter
+    volumes:
+      - ./monitoring/jmx:/opt/jmx:ro
+    environment:
+      HADOOP_DATANODE_OPTS: "-javaagent:/opt/jmx/jmx_prometheus_javaagent-0.20.0.jar=7001:/opt/jmx/hadoop.yml"
+    env_file:
+      - ./config
+    networks:
+      - hadoopnet
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - hadoopnet
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - hadoopnet

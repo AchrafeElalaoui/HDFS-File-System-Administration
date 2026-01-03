@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: 'namenode'
+    metrics_path: /
+    static_configs:
+      - targets: ['namenode:7000']
+
+  - job_name: 'datanode'
+    metrics_path: /
+    static_configs:
+      - targets: ['datanode:7001']

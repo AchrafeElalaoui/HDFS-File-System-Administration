@@ -1,0 +1,28 @@
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  - pattern: 'Hadoop<service=NameNode, name=FSNamesystem><>CapacityTotal'
+    name: hadoop_namenode_fs_namesystem_capacitytotal
+    type: GAUGE
+  - pattern: 'Hadoop<service=NameNode, name=FSNamesystem><>CapacityUsed'
+    name: hadoop_namenode_fs_namesystem_capacityused
+    type: GAUGE
+  - pattern: 'Hadoop<service=NameNode, name=FSNamesystem><>CapacityRemaining'
+    name: hadoop_namenode_fs_namesystem_capacityremaining
+    type: GAUGE
+  - pattern: 'Hadoop<service=NameNode, name=FSNamesystem><>BlocksTotal'
+    name: hadoop_namenode_fs_namesystem_blockstotal
+    type: GAUGE
+  - pattern: 'Hadoop<service=NameNode, name=FSNamesystem><>FilesTotal'
+    name: hadoop_namenode_fs_namesystem_filestotal
+    type: GAUGE
+  - pattern: 'java.lang<type=Threading><>(.+)'
+    name: jvm_threads_$1
+    type: GAUGE
+  - pattern: 'java.lang<type=Memory><HeapMemoryUsage>(\w+)'
+    name: jvm_memory_bytes_$1
+    type: GAUGE
+  - pattern: '.*'
+    name: jmx_misc
+    type: GAUGE

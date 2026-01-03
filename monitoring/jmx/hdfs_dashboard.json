@@ -1,0 +1,87 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "title": "HDFS Mini Dashboard",
+  "tags": ["hdfs","hadoop","jmx","mini"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "HDFS Capacity Used (bytes)",
+      "gridPos": {"x":0,"y":0,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr":"hadoop_namenode_fs_namesystem_capacityused{instance=~\"$instance\"}","legendFormat":"{{instance}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HDFS Capacity Remaining (bytes)",
+      "gridPos": {"x":12,"y":0,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr":"hadoop_namenode_fs_namesystem_capacityremaining{instance=~\"$instance\"}","legendFormat":"{{instance}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HDFS Blocks Total",
+      "gridPos": {"x":0,"y":8,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr":"hadoop_namenode_fs_namesystem_blockstotal{instance=~\"$instance\"}","legendFormat":"{{instance}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HDFS Files Total",
+      "gridPos": {"x":12,"y":8,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr":"hadoop_namenode_fs_namesystem_filestotal{instance=~\"$instance\"}","legendFormat":"{{instance}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM Heap Used (MB)",
+      "gridPos": {"x":0,"y":16,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr":"jvm_memory_bytes_used{area=\"heap\", instance=~\"$instance\"} / 1024 / 1024","legendFormat":"{{instance}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM Threads Current",
+      "gridPos": {"x":12,"y":16,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr":"jvm_threads_current{instance=~\"$instance\"}","legendFormat":"{{instance}}"}
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {"type":"prometheus","uid":"${DS_PROMETHEUS}"},
+        "query": "label_values(jvm_threads_current, instance)",
+        "includeAll": true,
+        "multi": true,
+        "refresh": 1
+      }
+    ]
+  }
+}
