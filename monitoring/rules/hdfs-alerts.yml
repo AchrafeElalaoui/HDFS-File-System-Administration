@@ -1,0 +1,29 @@
+groups:
+  - name: hdfs-mini
+    rules:
+      - alert: NameNodeDown
+        expr: up{job="namenode"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "NameNode is down"
+          description: "Prometheus cannot scrape {{ $labels.instance }} for 30s."
+
+      - alert: DataNodeDown
+        expr: up{job="datanode"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "DataNode is down"
+          description: "Prometheus cannot scrape {{ $labels.instance }} for 30s."
+
+      - alert: HdfsLowDiskSpace
+        expr: (hadoop_namenode_fs_namesystem_capacityremaining / hadoop_namenode_fs_namesystem_capacitytotal) < 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HDFS low remaining capacity (<10%)"
+          description: "Remaining={{ $value | humanizePercentage }} on {{ $labels.instance }}."

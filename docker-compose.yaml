@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   hadoopnet:
 
@@ -39,6 +37,31 @@ services:
     networks:
       - hadoopnet
 
+  resourcemanager:
+    image: apache/hadoop:3.3.6
+    container_name: resourcemanager
+    hostname: resourcemanager
+    command: ["yarn", "resourcemanager"]
+    ports:
+      - "8088:8088"   # ResourceManager Web UI
+      - "8032:8032"   # ResourceManager RPC
+    env_file:
+      - ./config
+    networks:
+      - hadoopnet
+
+  nodemanager:
+    image: apache/hadoop:3.3.6
+    container_name: nodemanager
+    hostname: nodemanager
+    command: ["yarn", "nodemanager"]
+    ports:
+      - "8042:8042"   # NodeManager Web UI
+    env_file:
+      - ./config
+    networks:
+      - hadoopnet
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -46,6 +69,17 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+    networks:
+      - hadoopnet
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     networks:
       - hadoopnet
 
