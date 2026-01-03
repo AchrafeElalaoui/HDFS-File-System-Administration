@@ -1,46 +1,61 @@
-# Lab 2 : HDFS File System Administration
+# HDFS Lab 2 - Administration Report
+
+Course: Big Data Systems
+Lab: HDFS File System Administration
+
+## Abstract
+
+This report documents the deployment of a mini HDFS + YARN cluster with Docker, and a sequence of administrative tasks: permissions, ACLs, snapshots, quotas, replication, integrity checks, monitoring, and alerting. Evidence is provided as screenshots.
+
+## Environment
+
+- Platform: Docker-based mini cluster
+- Services: NameNode, DataNode, ResourceManager, NodeManager
+- Monitoring: Prometheus + Grafana
 
 ## Objectives
 
-- Start and validate a mini HDFS + YARN cluster under Docker.
-- Practice HDFS administration tasks: users, permissions, ACLs, snapshots, quotas, replication, and integrity.
-- Discover basic monitoring through the NameNode and ResourceManager web interfaces.
+- Validate cluster health through CLI and web interfaces.
+- Apply HDFS administration features: ACLs, snapshots, quotas, replication, and integrity checks.
+- Observe metrics and alerts with Prometheus and Grafana.
 
-## 1) Launching the Cluster
+## Methodology
 
-From `lab2-hdfs/`:
+Commands were executed inside the NameNode container. UI validation used the NameNode and ResourceManager web interfaces. Monitoring was configured via JMX Exporter, scraped by Prometheus, and visualized in Grafana. Alerts were validated by simulating a DataNode failure.
+
+## Results and Evidence
+
+### 1. Cluster Startup
+
+Procedure:
 
 ```bash
 docker compose up -d
 docker compose ps
 ```
 
-Verify that the following services are running: `namenode`, `datanode`, `resourcemanager`, and `nodemanager`.
-
-**Snapshots**
+Evidence:
 
 ![docker compose up -d](snapshots/docker-compose-up-d.png)
 
 ![docker compose ps](snapshots/docker-compose-ps.png)
 
-## 2) Quick Checks via Web UI
+### 2. Web UI Validation
 
-- NameNode UI (HDFS): http://localhost:9870  
-  → Check: number of live DataNodes, capacity, and block status.
-- YARN ResourceManager UI: http://localhost:8088  
-  → Check: NodeManager is “HEALTHY.”
+Checks:
 
-Take screenshots as evidence.
+- NameNode UI: http://localhost:9870
+- ResourceManager UI: http://localhost:8088
 
-**Snapshots**
+Evidence:
 
 ![NameNode UI](snapshots/localhost-9870.png)
 
 ![ResourceManager UI](snapshots/localhost-8088.png)
 
-## 3) Admin Shell in the NameNode
+### 3. Admin Shell Access
 
-All the following HDFS commands are executed from inside the NameNode container:
+Procedure:
 
 ```bash
 docker exec -it namenode bash
@@ -49,13 +64,13 @@ hdfs dfs -ls /
 hdfs dfsadmin -report
 ```
 
-**Snapshots**
+Evidence:
 
 ![hdfs dfsadmin -report](snapshots/hdfs-dfsadmin-report.png)
 
-## 4) User Tree and Permissions
+### 4. HDFS Layout and Permissions
 
-Create a “cours” directory and simulate two logical users (without OS accounts):
+Procedure:
 
 ```bash
 hdfs dfs -mkdir -p /cours/tp1
@@ -64,7 +79,7 @@ hdfs dfs -chmod 755 /user /cours
 hdfs dfs -chmod 700 /user/student1 /user/student2
 ```
 
-Create a small sample dataset:
+Dataset creation:
 
 ```bash
 cat > /tmp/sales.csv << 'EOF'
@@ -79,7 +94,7 @@ hdfs dfs -put -f /tmp/sales.csv /cours/tp1/
 hdfs dfs -ls -h /cours/tp1
 ```
 
-**Snapshots**
+Evidence:
 
 ![User tree (mkdir/chmod)](snapshots/user-tree-4.1.png)
 
@@ -87,31 +102,23 @@ hdfs dfs -ls -h /cours/tp1
 
 ![Create and put sales.csv](snapshots/creat-csv-4.3.png)
 
-## 5) ACLs (Fine-Grained Access Control) on HDFS
+### 5. Access Control Lists (ACLs)
 
-Objective: give `student2` read-only access to `/cours/tp1` without changing standard permissions.
+Procedure:
 
 ```bash
-# Display existing ACLs
 hdfs dfs -getfacl /cours/tp1
-
-# Add read (r-x) ACL for “student2”
 hdfs dfs -setfacl -m user:student2:r-x /cours/tp1
-
-# Verify
 hdfs dfs -getfacl /cours/tp1
 ```
 
-If “student2” doesn’t exist on the host system, HDFS still stores it symbolically.  
-For demonstration, focus on how ACLs work and the resulting access behavior.
-
-**Snapshots**
+Evidence:
 
 ![HDFS ACLs](snapshots/acls.png)
 
-## 6) Snapshots (Logical Directory Backup)
+### 6. Snapshots
 
-Enable snapshots on `/cours` and create one before modification:
+Procedure:
 
 ```bash
 hdfs dfsadmin -allowSnapshot /cours
@@ -120,24 +127,23 @@ hdfs dfs -createSnapshot /cours "$SNAP"
 hdfs dfs -ls /cours/.snapshot
 ```
 
-Test accidental deletion and restoration:
+Restore test:
 
 ```bash
 hdfs dfs -rm /cours/tp1/sales.csv
 hdfs dfs -ls /cours/tp1
 
-# Restore from snapshot
 hdfs dfs -cp /cours/.snapshot/$SNAP/tp1/sales.csv /cours/tp1/
 hdfs dfs -ls /cours/tp1
 ```
 
-**Snapshots**
+Evidence:
 
 ![HDFS snapshots](snapshots/snapshots.png)
 
-## 7) Quotas (Space & File Limits)
+### 7. Quotas
 
-Set a quota on `/user/student1`:
+Procedure:
 
 ```bash
 hdfs dfsadmin -setSpaceQuota 1m /user/student1
@@ -145,37 +151,32 @@ hdfs dfsadmin -setQuota 100 /user/student1
 hdfs dfs -count -q -h /user/student1
 ```
 
-Test by copying a slightly large file:
+Quota test:
 
 ```bash
 dd if=/dev/zero of=/tmp/bigfile.bin bs=64K count=40 # ~2.5 MB
 hdfs dfs -put /tmp/bigfile.bin /user/student1/ || echo "Expected failure (quota exceeded)"
 ```
 
-Reset if needed:
+Reset:
 
 ```bash
 hdfs dfsadmin -clrSpaceQuota /user/student1
 hdfs dfsadmin -clrQuota /user/student1
 ```
 
-**Snapshots**
+Evidence:
 
 ![HDFS quotas](snapshots/quotas.png)
 
-## 8) Replication Factor & Data Integrity
+### 8. Replication and Integrity
 
-Check replication settings:
+Procedure:
 
 ```bash
-# Default replication factor
 hdfs getconf -confKey dfs.replication || true
-
-# For a specific file
 hdfs dfs -stat %r /cours/tp1/sales.csv
 ```
-
-Change the replication factor (e.g., from 1 → 2) and optionally run the balancer:
 
 ```bash
 hdfs dfs -setrep 2 /cours/tp1/sales.csv
@@ -183,13 +184,11 @@ hdfs dfs -stat %r /cours/tp1/sales.csv
 hdfs balancer -threshold 10
 ```
 
-Check integrity:
-
 ```bash
 hdfs fsck / -files -blocks -locations | head -n 50
 ```
 
-**Snapshots**
+Evidence:
 
 ![Replication factor change](snapshots/replocation-factor-change.png)
 
@@ -197,81 +196,59 @@ hdfs fsck / -files -blocks -locations | head -n 50
 
 ![HDFS fsck](snapshots/check-integrity.png)
 
-## 9) Safemode and Admin Operations
+### 9. Safemode
 
-Show the “safemode” (read-only NameNode state):
+Procedure:
 
 ```bash
 hdfs dfsadmin -safemode get
 ```
 
-**Snapshots**
+Evidence:
 
 ![safemode get](snapshots/safemode.png)
 
-## 10) Cluster Monitoring with Prometheus and Grafana
+### 10. Monitoring (Prometheus + Grafana)
 
-a monitoring system for Hadoop components (NameNode & DataNodes) using Prometheus and Grafana, to visualize HDFS metrics: capacity, blocks, files, and JVM health.
-
-### 10.1 Monitoring Architecture
-
-- JMX Exporter on each Hadoop service (NameNode, DataNode) exposes JVM and HDFS metrics.
-- Prometheus collects the metrics.
-- Grafana visualizes them as dashboards and charts.
+Architecture:
 
 ```
-NameNode (JMX) ─┐
-                ├──► Prometheus ───► Grafana
-DataNode (JMX) ─┘
+NameNode (JMX) -> Prometheus -> Grafana
+DataNode (JMX)  -----------^
 ```
 
-### 10.2 JMX Configuration for HDFS
+JMX configuration file:
 
-(File: `monitoring/jmx/hadoop.yml`)  
-Contains metric mapping rules for HDFS and JVM.
+- `monitoring/jmx/hadoop.yml`
 
-**Snapshots**
+Evidence:
 
 ![hadoop.yml](snapshots/hadoop-yml.png)
-
-### 10.3 Prometheus & Grafana Integration
 
 Launch monitoring:
 
 ```bash
 docker compose up -d
 ```
+
+Evidence:
+
 ![Grafana datasource (Prometheus)](snapshots/grafana-prometheus.png)
-
-Access:
-
-- Prometheus → http://localhost:9090
-- Grafana → http://localhost:3000 (`admin`/`admin`)
-
-**Snapshots**
 
 ![Prometheus UI](snapshots/Prometheus-localhost-9090.png)
 
 ![Grafana UI](snapshots/grafana-localhost-3000.png)
 
+Dashboard import:
 
-### 10.4 Grafana Dashboard
+- File: `monitoring/jmx/hdfs_dashboard.json`
+- Metrics: capacity, blocks, files, JVM heap, threads
 
-Import the dashboard JSON file `monitoring/jmx/hdfs_dashboard.json` (Grafana → Dashboards → Import) and visualize:
-
-- HDFS Capacity Used
-- HDFS Capacity Remaining
-- HDFS Blocks Total
-- HDFS Files Total
-- JVM Heap Used
-- JVM Threads Current
-
-**Snapshots**
-
+Evidence:
 
 ![Grafana dashboard](snapshots/Grafana-Dashboard.png)
 
-### 10.5 Experimentation
+Experimentation:
 
 ```bash
 hdfs dfs -mkdir /test
@@ -279,47 +256,49 @@ hdfs dfs -put /etc/passwd /test/
 hdfs dfs -put /etc/hosts /test/
 ```
 
-Then refresh Grafana to see metrics evolve.
-
-**Snapshots**
+Evidence:
 
 ![Metrics after data changes](snapshots/metrics1.png)
 
 ![Metrics after data changes](snapshots/metrics2.png)
 
-## 11) Prometheus Alert System Integration
+### 11. Alerting
 
-automatic alerts for real-time cluster issues: DataNode down, NameNode down, or low disk space.
+Alert locations:
 
-Where to see alerts:
+- Prometheus: http://localhost:9090/alerts
+- Alertmanager: http://localhost:9093
 
-- Prometheus alerts page → http://localhost:9090/alerts
-- Alertmanager UI → http://localhost:9093
+Evidence:
 
 ![No alerts](snapshots/no-alert.png)
 
-Simulate a failure:
+Failure simulation:
 
 ```bash
 docker stop datanode
 ```
 
+Evidence:
+
 ![Prometheus targets](snapshots/targets-health2.png)
 
+Alert fired after ~30 seconds.
 
-→ After 30 seconds, the `DataNodeDown` alert appears.
+Evidence:
 
 ![Alert firing](snapshots/alert.png)
 
-
-Restart:
+Recovery:
 
 ```bash
 docker start datanode
 ```
 
-→ The alert automatically resolves.
+Evidence:
 
-![alt text](snapshots/no-alert.png)
+![No alerts](snapshots/no-alert.png)
 
+## Conclusion
 
+The cluster was successfully deployed and validated. HDFS administration tasks (permissions, ACLs, snapshots, quotas, replication, and integrity) were executed with expected behavior. Monitoring and alerting workflows were verified using Prometheus and Grafana, including a simulated DataNode failure.
